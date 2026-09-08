@@ -1,0 +1,4 @@
+/vendor
+/js/node_modules
+/js/dist/*.map
+/composer.lock

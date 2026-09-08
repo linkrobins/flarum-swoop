@@ -1,0 +1,15 @@
+linkrobins-swoop:
+  admin:
+    key_label: Mail key
+    key_help: >
+      Paste the key from your Link Robins dashboard. Your forum's account
+      emails then go out through us over HTTPS, so a host that blocks SMTP
+      ports stops mattering. Saving checks the key straight away.
+    connected: Connected. Account emails are going out through Swoop.
+    not_connected: >
+      Not connected. Account emails are still using this forum's own mail
+      settings. Check the key, or look at Mail for the last error.
+    scope_note: >
+      Swoop currently carries the three account emails: confirm your account,
+      reset your password, and confirm a new address. Notifications and
+      digests still use your own mail settings.
