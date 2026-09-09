@@ -59,8 +59,9 @@ class SwoopClient
         }
 
         $body = $this->post('/mail/config', [
-            'token'     => $key,
-            'forum_url' => rtrim((string) $this->config->url(), '/'),
+            'token'       => $key,
+            'forum_url'   => rtrim((string) $this->config->url(), '/'),
+            'forum_title' => $this->forumTitle(),
         ]);
 
         return ($body && !empty($body['connected'])) ? $body : null;
@@ -80,10 +81,14 @@ class SwoopClient
         }
 
         $body = $this->post('/mail/send', [
-            'token' => $this->key(),
-            'type'  => $type,
-            'to'    => $to,
-            'link'  => $link,
+            'token'       => $this->key(),
+            'type'        => $type,
+            'to'          => $to,
+            'link'        => $link,
+            // Sent every time, not just at connect: a forum that renames itself
+            // should be right in the next email rather than whenever somebody
+            // happens to re-save their key.
+            'forum_title' => $this->forumTitle(),
         ]);
 
         return (bool) ($body['sent'] ?? false);
@@ -155,6 +160,18 @@ class SwoopClient
      * An admin who types a bare host has given a usable answer, so treat it as
      * one rather than letting the http client throw on a url with no scheme.
      */
+    /**
+     * This forum's own name, for the service to put in the email.
+     *
+     * The name a member reads has to come from the forum, not from a label
+     * somebody typed on our side when the key was made. This is the same
+     * setting the forum shows in its own header.
+     */
+    private function forumTitle(): string
+    {
+        return mb_substr(trim((string) $this->settings->get('forum_title')), 0, 120);
+    }
+
     private function serviceUrl(): string
     {
         $url = trim((string) $this->settings->get('linkrobins-swoop.service-url'));

@@ -64,6 +64,7 @@ class SwoopClientTest extends TestCase
             'linkrobins-swoop.key'         => 'KEY-123',
             'linkrobins-swoop.connected'   => '1',
             'linkrobins-swoop.service-url' => 'https://service.test',
+            'forum_title'                  => 'Karl\'s Forum',
         ];
     }
 
@@ -82,6 +83,21 @@ class SwoopClientTest extends TestCase
         // The forum reporting its own address is what makes the service's link
         // check mean anything.
         $this->assertStringContainsString('forum_url=https%3A%2F%2Fforum.example.test', $body);
+    }
+
+    #[Test]
+    public function the_forum_reports_its_own_name(): void
+    {
+        $client = $this->client(
+            [new Response(200, [], json_encode(['sent' => true]))],
+            $this->connectedSettings()
+        );
+
+        $client->send('activation', 'a@b.test', 'https://forum.example.test/x');
+
+        // The name a member reads comes from the forum's own settings, not from
+        // a label typed on the service side.
+        $this->assertStringContainsString('forum_title=Karl%27s+Forum', (string) $this->history[0]['request']->getBody());
     }
 
     #[Test]
