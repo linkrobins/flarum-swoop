@@ -25,7 +25,9 @@ use Throwable;
  */
 class SwoopClient
 {
-    public const TYPES = ['activation', 'password_reset', 'email_change'];
+    // 'test' is the admin proving the path to themselves from the settings
+    // page. It is a real send and counts against quota like the rest.
+    public const TYPES = ['activation', 'password_reset', 'email_change', 'test'];
 
     /**
      * Where the service answers unless a forum overrides it.

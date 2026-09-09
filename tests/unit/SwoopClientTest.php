@@ -129,6 +129,23 @@ class SwoopClientTest extends TestCase
     }
 
     #[Test]
+    public function the_test_type_is_allowed_and_still_carries_no_message_fields(): void
+    {
+        $client = $this->client([new Response(200, [], json_encode(['sent' => true]))], $this->connectedSettings());
+
+        // The admin's own "is this working?" send. It is a real email, so it
+        // goes through exactly the same narrow door as the account mail.
+        $this->assertTrue($client->send('test', 'admin@b.test', 'https://forum.example.test'));
+
+        $body = (string) $this->history[0]['request']->getBody();
+        $this->assertStringContainsString('type=test', $body);
+
+        foreach (['subject', 'body', 'html', 'text', 'from', 'sender'] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden . '=', $body);
+        }
+    }
+
+    #[Test]
     public function a_service_refusal_is_reported_as_not_sent(): void
     {
         $client = $this->client(

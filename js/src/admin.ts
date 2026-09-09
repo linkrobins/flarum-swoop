@@ -1,5 +1,6 @@
 import app from 'flarum/admin/app';
 import Alert from 'flarum/common/components/Alert';
+import Button from 'flarum/common/components/Button';
 
 /**
  * Two fields and a banner.
@@ -13,6 +14,41 @@ import Alert from 'flarum/common/components/Alert';
  */
 function setting(key: string): string {
   return (app.data.settings as Record<string, string | null>)[key] ?? '';
+}
+
+/**
+ * "Is it working?" answered without registering a fake account.
+ *
+ * Deliberately not disabled while disconnected: an admin who presses it then
+ * gets told why, which is more use than a button that quietly does nothing.
+ */
+const test: { busy: boolean; ok: boolean | null; message: string } = { busy: false, ok: null, message: '' };
+
+function sendTest() {
+  test.busy = true;
+  test.ok = null;
+  test.message = '';
+  m.redraw();
+
+  app
+    .request<{ sent: boolean; to?: string; error?: string }>({
+      method: 'POST',
+      url: app.forum.attribute('apiUrl') + '/swoop/test',
+      errorHandler: () => {},
+    })
+    .then((r) => {
+      test.ok = true;
+      test.message = app.translator.trans('linkrobins-swoop.admin.test_sent', { email: r.to }) as string;
+    })
+    .catch((e) => {
+      test.ok = false;
+      const reason = e?.response?.error || e?.message || '';
+      test.message = app.translator.trans('linkrobins-swoop.admin.test_failed', { error: reason }) as string;
+    })
+    .then(() => {
+      test.busy = false;
+      m.redraw();
+    });
 }
 
 app.initializers.add('linkrobins-swoop', () => {
@@ -34,6 +70,18 @@ app.initializers.add('linkrobins-swoop', () => {
         m('p.helpText', app.translator.trans('linkrobins-swoop.admin.scope_note')),
       ]);
     }, 100, 'status')
+    .registerSetting(() =>
+      m('.Form-group', [
+        m(
+          Button,
+          { className: 'Button', loading: test.busy, disabled: test.busy, onclick: sendTest },
+          app.translator.trans(`linkrobins-swoop.admin.${test.busy ? 'test_sending' : 'test_button'}`)
+        ),
+        test.ok !== null
+          ? m(Alert, { type: test.ok ? 'success' : 'error', dismissible: false }, test.message)
+          : null,
+        m('p.helpText', app.translator.trans('linkrobins-swoop.admin.test_help')),
+      ]), 70, 'test')
     .registerSetting({
       setting: 'linkrobins-swoop.key',
       label: app.translator.trans('linkrobins-swoop.admin.key_label'),

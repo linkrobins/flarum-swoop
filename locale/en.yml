@@ -5,6 +5,13 @@ linkrobins-swoop:
       Paste the key from your Link Robins dashboard. Your forum's account
       emails then go out through us over HTTPS, so a host that blocks SMTP
       ports stops mattering. Saving checks the key straight away.
+    test_button: Send me a test email
+    test_sending: Sending…
+    test_sent: "Sent to {email}. If it does not arrive within a minute or two, check spam before changing anything."
+    test_failed: "Could not send: {error}"
+    test_help: >
+      Sends one real email to your own address, so you find out the whole path
+      works before a new member does. It counts against your monthly allowance.
     service_url_label: Service address
     service_url_help: >
       Where the key is checked and messages are handed over. Leave this alone

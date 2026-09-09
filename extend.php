@@ -38,6 +38,9 @@ return [
     // Core pushes its reset job with `new`, so the controller that pushes it is
     // the only seam.
     (new Extend\Routes('api'))
+        // Admin-only, no recipient parameter: it can only mail the admin who
+        // calls it.
+        ->post('/swoop/test', 'swoop.test', LinkRobins\Swoop\Http\SendTestController::class)
         ->remove('forgot')
         ->post('/forgot', 'forgot', LinkRobins\Swoop\Http\ForgotPasswordController::class),
 
