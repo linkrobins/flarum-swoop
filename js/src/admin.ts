@@ -86,7 +86,12 @@ app.initializers.add('linkrobins-swoop', () => {
       setting: 'linkrobins-swoop.key',
       label: app.translator.trans('linkrobins-swoop.admin.key_label'),
       help: app.translator.trans('linkrobins-swoop.admin.key_help'),
-      type: 'string',
+      // A credential, so it is not rendered in the clear on a page an admin
+      // may screenshot into a support thread. This hides it from the screen,
+      // not from the browser: the value still arrives in the admin payload
+      // like every other setting, so it is a shoulder-surfing fix rather than
+      // a secrecy one.
+      type: 'password',
     }, 90)
     .registerSetting({
       setting: 'linkrobins-swoop.service-url',
