@@ -27,6 +27,14 @@ class SwoopClient
 {
     public const TYPES = ['activation', 'password_reset', 'email_change'];
 
+    /**
+     * Where the service answers unless a forum overrides it.
+     *
+     * Kept here rather than repeated at each use so that the extender default
+     * and the fallback below can never drift apart.
+     */
+    public const DEFAULT_SERVICE_URL = 'https://linkrobins.com';
+
     public function __construct(
         private SettingsRepositoryInterface $settings,
         private Client $http,
@@ -81,10 +89,11 @@ class SwoopClient
 
     private function post(string $path, array $params): ?array
     {
-        $base = rtrim((string) ($this->settings->get('linkrobins-swoop.service-url') ?: 'https://linkrobins.com'), '/');
+        $base = $this->serviceUrl();
+        $url  = $base . $path;
 
         try {
-            $res = $this->http->post($base . $path, [
+            $res = $this->http->post($url, [
                 'form_params'     => $params,
                 'headers'         => ['Accept' => 'application/json'],
                 'connect_timeout' => 3,
@@ -98,14 +107,27 @@ class SwoopClient
                 // The service explains itself in `error`; keep that, because
                 // "quota reached" and "service down" want different responses
                 // from an admin.
+                //
+                // A host that is not the service at all answers in its own
+                // shape, or in no shape: a wrong url typically gives a 404 or a
+                // 405 with Laravel's `message`, or an HTML error page that
+                // decodes to nothing. Record the status and the address in that
+                // case, because "405 from https://example.com/mail/config" is
+                // what tells an admin they are pointed at the wrong host, and
+                // an empty banner tells them nothing.
+                $reason = is_array($body)
+                    ? ($body['error'] ?? $body['message'] ?? null)
+                    : null;
+
                 $this->log->warning('Swoop: ' . $path . ' refused', [
+                    'url'    => $url,
                     'status' => $res->getStatusCode(),
-                    'reason' => is_array($body) ? ($body['error'] ?? null) : null,
+                    'reason' => $reason,
                 ]);
 
-                if (is_array($body) && isset($body['error'])) {
-                    $this->settings->set('linkrobins-swoop.last-error', mb_substr((string) $body['error'], 0, 255));
-                }
+                $this->rememberError($reason !== null
+                    ? (string) $reason
+                    : 'The service did not answer at ' . $url . ' (HTTP ' . $res->getStatusCode() . ').');
 
                 return null;
             }
@@ -114,10 +136,41 @@ class SwoopClient
 
             return is_array($body) ? $body : null;
         } catch (Throwable $e) {
-            $this->log->warning('Swoop: ' . $path . ' threw', ['error' => $e->getMessage()]);
+            $this->log->warning('Swoop: ' . $path . ' threw', ['url' => $url, 'error' => $e->getMessage()]);
+
+            // Nothing answered at all: an unreachable host, DNS that does not
+            // resolve, a timeout. Previously this was logged and nowhere else,
+            // so the settings page said "not connected" with no reason on it.
+            $this->rememberError('Could not reach the service at ' . $url . ': ' . $e->getMessage());
 
             return null;
         }
+    }
+
+    /**
+     * The service address, normalised.
+     *
+     * An admin who types a bare host has given a usable answer, so treat it as
+     * one rather than letting the http client throw on a url with no scheme.
+     */
+    private function serviceUrl(): string
+    {
+        $url = trim((string) $this->settings->get('linkrobins-swoop.service-url'));
+
+        if ($url === '') {
+            $url = self::DEFAULT_SERVICE_URL;
+        }
+
+        if (! preg_match('~^https?://~i', $url)) {
+            $url = 'https://' . $url;
+        }
+
+        return rtrim($url, '/');
+    }
+
+    private function rememberError(string $error): void
+    {
+        $this->settings->set('linkrobins-swoop.last-error', mb_substr($error, 0, 255));
     }
 
     private function key(): string

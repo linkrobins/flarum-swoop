@@ -22,6 +22,8 @@ composer require linkrobins/flarum-swoop
 
 Then paste your key under **Admin → Swoop**. Saving checks it immediately, so you know it works before a new member finds out for you.
 
+The panel there says whether the key was accepted, and prints what the service replied when it was not. There is also a **Service address**, which is `https://linkrobins.com` and which you should leave alone unless you have been given a different one.
+
 ## If the service is unreachable
 
 Every path falls back to your forum's own mail settings. Installing this can only help; it cannot leave you worse off than you were.

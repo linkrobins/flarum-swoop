@@ -5,10 +5,16 @@ linkrobins-swoop:
       Paste the key from your Link Robins dashboard. Your forum's account
       emails then go out through us over HTTPS, so a host that blocks SMTP
       ports stops mattering. Saving checks the key straight away.
+    service_url_label: Service address
+    service_url_help: >
+      Where the key is checked and messages are handed over. Leave this alone
+      unless you have been given a different address; it should look like
+      https://linkrobins.com, with no path after the host.
     connected: Connected. Account emails are going out through Swoop.
     not_connected: >
       Not connected. Account emails are still using this forum's own mail
-      settings. Check the key, or look at Mail for the last error.
+      settings.
+    last_error: "Last answer from the service: {error}"
     scope_note: >
       Swoop currently carries the three account emails: confirm your account,
       reset your password, and confirm a new address. Notifications and

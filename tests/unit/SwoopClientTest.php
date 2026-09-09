@@ -26,10 +26,14 @@ class SwoopClientTest extends TestCase
 {
     private array $history = [];
 
+    /** @var array<string, mixed> */
+    private array $written = [];
+
     protected function tearDown(): void
     {
         Mockery::close();
         $this->history = [];
+        $this->written = [];
     }
 
     private function client(array $responses, array $settings = []): SwoopClient
@@ -40,7 +44,11 @@ class SwoopClientTest extends TestCase
 
         $repo = Mockery::mock(SettingsRepositoryInterface::class);
         $repo->shouldReceive('get')->andReturnUsing(fn ($k) => $settings[$k] ?? null);
-        $repo->shouldReceive('set')->andReturnNull();
+        $repo->shouldReceive('set')->andReturnUsing(function ($k, $v) {
+            $this->written[$k] = $v;
+
+            return null;
+        });
 
         return new SwoopClient(
             $repo,
@@ -142,5 +150,78 @@ class SwoopClientTest extends TestCase
         // A forum whose mail service is unreachable must fall back, not throw
         // in the middle of somebody registering.
         $this->assertFalse($client->send('activation', 'a@b.test', 'https://forum.example.test/x'));
+    }
+
+    #[Test]
+    public function the_configured_service_address_is_the_one_called(): void
+    {
+        $client = $this->client(
+            [new Response(200, [], json_encode(['connected' => true]))],
+            ['linkrobins-swoop.service-url' => 'https://elsewhere.test/']
+        );
+
+        $client->connect('KEY-123');
+
+        $this->assertSame('https://elsewhere.test/mail/config', (string) $this->history[0]['request']->getUri());
+    }
+
+    #[Test]
+    public function an_address_without_a_scheme_is_still_usable(): void
+    {
+        // An admin who types a bare host has answered the question; the http
+        // client would otherwise throw on a url with no scheme.
+        $client = $this->client(
+            [new Response(200, [], json_encode(['connected' => true]))],
+            ['linkrobins-swoop.service-url' => 'elsewhere.test']
+        );
+
+        $client->connect('KEY-123');
+
+        $this->assertSame('https://elsewhere.test/mail/config', (string) $this->history[0]['request']->getUri());
+    }
+
+    #[Test]
+    public function a_host_that_is_not_the_service_says_so_instead_of_saying_nothing(): void
+    {
+        // What the wrong host actually returns: Laravel's 405, whose body has
+        // `message` and no `error`. Before, nothing was recorded at all and the
+        // settings page reported "not connected" with no reason on it.
+        $client = $this->client(
+            [new Response(405, [], json_encode(['message' => 'The POST method is not supported for route mail/config.']))],
+            ['linkrobins-swoop.service-url' => 'https://wrong.test']
+        );
+
+        $this->assertNull($client->connect('KEY-123'));
+        $this->assertStringContainsString(
+            'The POST method is not supported',
+            (string) $this->written['linkrobins-swoop.last-error']
+        );
+    }
+
+    #[Test]
+    public function a_body_that_explains_nothing_still_names_the_address_and_the_status(): void
+    {
+        $client = $this->client(
+            [new Response(404, [], '<html><body>Not Found</body></html>')],
+            ['linkrobins-swoop.service-url' => 'https://wrong.test']
+        );
+
+        $this->assertNull($client->connect('KEY-123'));
+
+        $recorded = (string) $this->written['linkrobins-swoop.last-error'];
+        $this->assertStringContainsString('https://wrong.test/mail/config', $recorded);
+        $this->assertStringContainsString('404', $recorded);
+    }
+
+    #[Test]
+    public function a_host_that_does_not_answer_is_recorded_too(): void
+    {
+        $client = $this->client(
+            [new \GuzzleHttp\Exception\ConnectException('dns failed', new \GuzzleHttp\Psr7\Request('POST', 'https://gone.test'))],
+            ['linkrobins-swoop.service-url' => 'https://gone.test']
+        );
+
+        $this->assertNull($client->connect('KEY-123'));
+        $this->assertStringContainsString('https://gone.test/mail/config', (string) $this->written['linkrobins-swoop.last-error']);
     }
 }

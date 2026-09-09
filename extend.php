@@ -18,6 +18,7 @@
 use Flarum\Extend;
 use Flarum\Settings\Event\Saved;
 use LinkRobins\Swoop\Listener\ExchangeKeyOnSave;
+use LinkRobins\Swoop\SwoopClient;
 use LinkRobins\Swoop\SwoopServiceProvider;
 
 return [
@@ -40,8 +41,11 @@ return [
         ->remove('forgot')
         ->post('/forgot', 'forgot', LinkRobins\Swoop\Http\ForgotPasswordController::class),
 
+    // The address is a setting, and an admin can see and change it, because a
+    // forum that is pointed at the wrong host has no other way back: the only
+    // symptom is that account emails stop arriving.
     (new Extend\Settings())
-        ->default('linkrobins-swoop.service-url', 'https://linkrobins.com')
+        ->default('linkrobins-swoop.service-url', SwoopClient::DEFAULT_SERVICE_URL)
         ->default('linkrobins-swoop.connected', '0')
         ->serializeToForum('swoopConnected', 'linkrobins-swoop.connected', 'boolval'),
 ];
