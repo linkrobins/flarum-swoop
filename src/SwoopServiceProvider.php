@@ -27,6 +27,7 @@ class SwoopServiceProvider extends AbstractServiceProvider
             $this->container->bind($core, function ($container) use ($ours) {
                 $mailer = $container->make($ours);
                 $mailer->setSwoop($container->make(SwoopClient::class));
+                $mailer->setNative($container->make(NativeMessage::class));
 
                 return $mailer;
             });

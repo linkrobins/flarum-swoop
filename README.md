@@ -28,9 +28,20 @@ The panel there says whether the key was accepted, and prints what the service r
 
 Every path falls back to your forum's own mail settings. Installing this can only help; it cannot leave you worse off than you were.
 
-## Why the API looks so narrow
+## Your forum writes the email, we deliver it
 
-The extension can ask for a *type* and a link. It cannot supply a subject, a body or a sender, because those are the fields that would turn a leaked key into a spam relay. The message is rendered on our side, and any link that does not point back at your forum is refused.
+The message is Flarum's own — its templates, its wording, its footer, and its
+translations. It is rendered by your forum, in the *recipient's* language, so a
+German member reads German even on an English forum. Nothing is re-written on
+our side and nothing carries our branding.
+
+What stops a leaked key becoming a spam relay is not that we write the message,
+but that **every link in it must point at your forum**. A message carrying any
+other destination is refused, and a plain account email only ever links back to
+itself, so nothing legitimate is ever turned away. Spam without a payload link
+is not worth sending. The sender is never yours to choose, sizes are capped, and
+your key sends on its own dedicated mail server, so anything that does go wrong
+stays with your forum rather than everyone else's.
 
 ## License
 

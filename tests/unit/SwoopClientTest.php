@@ -137,11 +137,36 @@ class SwoopClientTest extends TestCase
         $this->assertStringContainsString('type=activation', $body);
         $this->assertStringContainsString('token=KEY-123', $body);
 
-        // The point of the whole design: there is no field here that could
-        // carry an attacker's message.
-        foreach (['subject', 'body', 'html', 'text', 'from', 'sender'] as $forbidden) {
+        // No sender, ever: the address a member sees is not the forum's to
+        // choose. A subject and body may travel now -- the forum renders its
+        // own email -- but only when it actually rendered one.
+        foreach (['from', 'sender'] as $forbidden) {
             $this->assertStringNotContainsString($forbidden . '=', $body);
         }
+
+        // Nothing rendered was passed, so nothing message-shaped is on the wire.
+        foreach (['subject', 'html', 'text'] as $absent) {
+            $this->assertStringNotContainsString($absent . '=', $body);
+        }
+    }
+
+    #[Test]
+    public function the_forums_own_rendered_message_is_what_travels(): void
+    {
+        $client = $this->client([new Response(200, [], json_encode(['sent' => true]))], $this->connectedSettings());
+
+        $this->assertTrue($client->send('activation', 'a@b.test', 'https://forum.example.test/x', [
+            'subject' => 'Activate Your New Account',
+            'text'    => 'Hey there',
+            'html'    => '<p>Hey there</p>',
+        ]));
+
+        $body = (string) $this->history[0]['request']->getBody();
+        $this->assertStringContainsString('subject=Activate+Your+New+Account', $body);
+        $this->assertStringContainsString('text=Hey+there', $body);
+
+        // Still never ours to choose.
+        $this->assertStringNotContainsString('from=', $body);
     }
 
     #[Test]

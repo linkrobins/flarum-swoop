@@ -72,24 +72,33 @@ class SwoopClient
      *
      * @param string $type One of self::TYPES.
      * @param string $link Must be a url on this forum; the service rejects others.
+     * @param array{subject?:string,html?:string,text?:string} $message The email
+     *        as the forum rendered it. Every link in it must be on this forum.
      * @return bool True when the service accepted it.
      */
-    public function send(string $type, string $to, string $link): bool
+    public function send(string $type, string $to, string $link, array $message = []): bool
     {
         if (!$this->connected() || !in_array($type, self::TYPES, true)) {
             return false;
         }
 
-        $body = $this->post('/mail/send', [
+        $body = $this->post('/mail/send', array_filter([
             'token'       => $this->key(),
             'type'        => $type,
             'to'          => $to,
             'link'        => $link,
+            // The finished email, rendered by the forum. The service delivers
+            // it as-is; it does not write one of its own. Absent only if the
+            // caller had nothing rendered, in which case the service falls
+            // back to its own copy.
+            'subject'     => $message['subject'] ?? null,
+            'html'        => $message['html'] ?? null,
+            'text'        => $message['text'] ?? null,
             // Sent every time, not just at connect: a forum that renames itself
             // should be right in the next email rather than whenever somebody
             // happens to re-save their key.
             'forum_title' => $this->forumTitle(),
-        ]);
+        ], fn ($v) => $v !== null && $v !== ''));
 
         return (bool) ($body['sent'] ?? false);
     }
