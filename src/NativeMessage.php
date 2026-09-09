@@ -3,6 +3,8 @@
 namespace LinkRobins\Swoop;
 
 use Flarum\Locale\TranslatorInterface;
+use Flarum\Formatter\Formatter;
+use Flarum\Mail\MailFormatter;
 use Flarum\Mail\SafeSubstitution;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Illuminate\Contracts\View\Factory;
@@ -26,7 +28,8 @@ class NativeMessage
     public function __construct(
         private Factory $view,
         private TranslatorInterface $translator,
-        private SettingsRepositoryInterface $settings
+        private SettingsRepositoryInterface $settings,
+        private Formatter $formatter
     ) {
     }
 
@@ -64,7 +67,29 @@ class NativeMessage
 
             // Rendered inside the locale block on purpose — the footer and the
             // greeting are translated too.
-            $html = $this->view->make('mail::html.information.generic', ['infoContent' => $body])->render();
+            // The body is written as text with blank lines between paragraphs
+            // and a bare url on its own line. Handed straight to the HTML view
+            // it arrives as one run-on block with the activation link as plain
+            // text -- unclickable, which is the only thing the email is for.
+            // (Core's own generic informational email has this same shape;
+            // verified against stock Flarum with the mail driver set to log.)
+            //
+            // So the HTML part goes through the formatter core already gives
+            // its email views -- the same one its footer uses -- which makes
+            // paragraphs and turns the url into a real link. Flarum's own
+            // content through Flarum's own formatter; nothing of ours.
+            //
+            // `body` rather than `infoContent`: the information view inserts
+            // `body` raw and escapes `infoContent`, so this is the seam meant
+            // for markup that is already rendered.
+            $mailFormatter = new MailFormatter($this->formatter);
+
+            $html = $this->view->make('mail::html.information', [
+                'body' => $mailFormatter->convert($body),
+            ])->render();
+
+            // Plain text wants the text exactly as written -- blank lines and
+            // a bare url are correct there.
             $text = $this->view->make('mail::plain.information.generic', ['infoContent' => $body])->render();
 
             // Core substitutes values with opaque markers before rendering so a
