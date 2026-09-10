@@ -138,6 +138,38 @@ class SwoopClient
         return (array) ($body['replies'] ?? []);
     }
 
+    /**
+     * Hand over a message the forum has already finished.
+     *
+     * Null when the service took it, or the reason it did not — the transport
+     * turns that into an exception, so a failure is visible rather than a
+     * silently missing email.
+     *
+     * @param array{to:string,subject:string,html:string,text:string,reply_to:string} $message
+     */
+    public function deliver(array $message): ?string
+    {
+        if (! $this->connected()) {
+            return 'no Swoop key is connected';
+        }
+
+        $body = $this->post('/mail/deliver', array_filter([
+            'token'       => $this->key(),
+            'forum_title' => $this->forumTitle(),
+            'to'          => $message['to'],
+            'subject'     => $message['subject'],
+            'html'        => $message['html'],
+            'text'        => $message['text'],
+            'reply_to'    => $message['reply_to'],
+        ], fn ($v) => $v !== null && $v !== ''));
+
+        if ($body && ! empty($body['sent'])) {
+            return null;
+        }
+
+        return (string) ($this->settings->get('linkrobins-swoop.last-error') ?: 'the service refused the message');
+    }
+
     private function post(string $path, array $params): ?array
     {
         $base = $this->serviceUrl();
