@@ -145,7 +145,11 @@ class SwoopClient
      * turns that into an exception, so a failure is visible rather than a
      * silently missing email.
      *
-     * @param array{to:string,subject:string,html:string,text:string,reply_to:string} $message
+     * @param array{
+     *     to: string, cc?: string, bcc?: string, from?: string,
+     *     subject: string, html: string, text: string, reply_to?: string,
+     *     headers?: array<string,string>
+     * } $message The email exactly as the forum built it.
      */
     public function deliver(array $message): ?string
     {
