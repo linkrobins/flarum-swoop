@@ -36,6 +36,13 @@ mail fails, exactly as it would with an SMTP host that stopped answering.
 Earlier versions intercepted three emails and fell back to your own settings;
 that was safer and much less useful.
 
+Two more things worth knowing before you pick it. **The From address is ours,
+not yours** — mail goes out as your forum's own name on our sending domain, so
+the address in Admin → Email is not used while Swoop is the driver. And
+**attachments are not carried yet**: a message with one is refused rather than
+sent without it, because an email saying "see attached" with nothing attached
+is worse than a failure you can see.
+
 ## Your forum writes the email, we deliver it
 
 The message is Flarum's own — its templates, its wording, its footer, and its

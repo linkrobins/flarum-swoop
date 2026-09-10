@@ -160,18 +160,33 @@ class SwoopClient
             'subject'     => $message['subject'],
             'html'        => $message['html'],
             'text'        => $message['text'],
-            'reply_to'    => $message['reply_to'],
-        ], fn ($v) => $v !== null && $v !== ''));
+            'reply_to'    => $message['reply_to'] ?? '',
+            'cc'          => $message['cc'] ?? '',
+            'bcc'         => $message['bcc'] ?? '',
+            'from'        => $message['from'] ?? '',
+            'headers'     => $message['headers'] ? json_encode($message['headers']) : '',
+        ], fn ($v) => $v !== null && $v !== ''), remember: false);
 
         if ($body && ! empty($body['sent'])) {
             return null;
         }
 
-        return (string) ($this->settings->get('linkrobins-swoop.last-error') ?: 'the service refused the message');
+        return $this->lastFailure ?: 'the service refused the message';
     }
 
-    private function post(string $path, array $params): ?array
+    /** The reason the last call failed, for callers that do not want it stored. */
+    private ?string $lastFailure = null;
+
+    /**
+     * @param bool $remember Write the reason to settings so the admin page can
+     *   show it. True for the key exchange, which happens when somebody presses
+     *   save; false on the send path, where it would mean a settings write and
+     *   a cache bust for every email, and a write storm during an outage.
+     */
+    private function post(string $path, array $params, bool $remember = true): ?array
     {
+        $this->lastFailure = null;
+
         $base = $this->serviceUrl();
         $url  = $base . $path;
 
@@ -208,14 +223,20 @@ class SwoopClient
                     'reason' => $reason,
                 ]);
 
-                $this->rememberError($reason !== null
+                $this->lastFailure = $reason !== null
                     ? (string) $reason
-                    : 'The service did not answer at ' . $url . ' (HTTP ' . $res->getStatusCode() . ').');
+                    : 'The service did not answer at '.$url.' (HTTP '.$res->getStatusCode().').';
+
+                if ($remember) {
+                    $this->rememberError($this->lastFailure);
+                }
 
                 return null;
             }
 
-            $this->settings->set('linkrobins-swoop.last-error', '');
+            if ($remember) {
+                $this->settings->set('linkrobins-swoop.last-error', '');
+            }
 
             return is_array($body) ? $body : null;
         } catch (Throwable $e) {
@@ -224,7 +245,11 @@ class SwoopClient
             // Nothing answered at all: an unreachable host, DNS that does not
             // resolve, a timeout. Previously this was logged and nowhere else,
             // so the settings page said "not connected" with no reason on it.
-            $this->rememberError('Could not reach the service at ' . $url . ': ' . $e->getMessage());
+            $this->lastFailure = 'Could not reach the service at '.$url.': '.$e->getMessage();
+
+            if ($remember) {
+                $this->rememberError($this->lastFailure);
+            }
 
             return null;
         }
