@@ -5,6 +5,11 @@ linkrobins-swoop:
       Paste the key from your Link Robins dashboard. Your forum's account
       emails then go out through us over HTTPS, so a host that blocks SMTP
       ports stops mattering. Saving checks the key straight away.
+    balance_label: Emails left
+    balance_left: "{count} left. They do not expire."
+    balance_low: "{count} left. Top up before you run out — when the balance is empty your forum falls back to its own mail settings."
+    balance_unknown: Connect a key to see how many emails you have left.
+    top_up: Top up
     test_button: Send me a test email
     test_sending: Sending…
     test_sent: "Sent to {email}. If it does not arrive within a minute or two, check spam before changing anything."

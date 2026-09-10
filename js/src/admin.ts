@@ -24,6 +24,38 @@ function setting(key: string): string {
  */
 const test: { busy: boolean; ok: boolean | null; message: string } = { busy: false, ok: null, message: '' };
 
+/**
+ * Emails left, asked for when the page opens.
+ *
+ * A balance drains, so the number is only meaningful at the moment you look at
+ * it. Reading it from a stored setting would show whatever it was the last time
+ * the forum happened to send — which is precisely wrong on the one screen an
+ * admin opens to find out where they stand.
+ */
+const meter: { loaded: boolean; balance: number | null; topUpUrl: string } = { loaded: false, balance: null, topUpUrl: '' };
+
+function loadMeter() {
+  app
+    .request<{ connected: boolean; balance: number | null; topUpUrl?: string }>({
+      method: 'GET',
+      url: app.forum.attribute('apiUrl') + '/swoop/status',
+      errorHandler: () => {},
+    })
+    .then((r) => {
+      meter.loaded = true;
+      meter.balance = r.balance;
+      meter.topUpUrl = r.topUpUrl || '';
+      m.redraw();
+    })
+    .catch(() => {
+      meter.loaded = true;
+      m.redraw();
+    });
+}
+
+/** Low enough to act on, not so low the forum is already stuck. */
+const LOW_WATER = 250;
+
 function sendTest() {
   test.busy = true;
   test.ok = null;
@@ -70,6 +102,39 @@ app.initializers.add('linkrobins-swoop', () => {
         m('p.helpText', app.translator.trans('linkrobins-swoop.admin.scope_note')),
       ]);
     }, 100, 'status')
+    .registerSetting(() => {
+      if (!meter.loaded) loadMeter();
+
+      const left = meter.balance;
+      const low = left !== null && left <= LOW_WATER;
+
+      return m('.Form-group.Swoop-meter', [
+        m('label', app.translator.trans('linkrobins-swoop.admin.balance_label')),
+        left === null
+          ? m('p.helpText', app.translator.trans('linkrobins-swoop.admin.balance_unknown'))
+          : [
+              m('.Swoop-meterBar', { role: 'img', 'aria-label': String(left) }, [
+                m('.Swoop-meterFill', {
+                  className: low ? 'is-low' : '',
+                  style: { width: Math.max(2, Math.min(100, (left / 10000) * 100)) + '%' },
+                }),
+              ]),
+              m(
+                'p.helpText',
+                low
+                  ? app.translator.trans('linkrobins-swoop.admin.balance_low', { count: left })
+                  : app.translator.trans('linkrobins-swoop.admin.balance_left', { count: left })
+              ),
+            ],
+        meter.topUpUrl
+          ? m(
+              'a.Button',
+              { href: meter.topUpUrl, target: '_blank', rel: 'noopener' },
+              app.translator.trans('linkrobins-swoop.admin.top_up')
+            )
+          : null,
+      ]);
+    }, 85, 'balance')
     .registerSetting(() =>
       m('.Form-group', [
         m(

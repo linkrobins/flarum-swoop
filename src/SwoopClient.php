@@ -68,6 +68,22 @@ class SwoopClient
     }
 
     /**
+     * Ask the service where this key stands.
+     *
+     * Same call as connect(), which already answers with the balance -- there is
+     * no second endpoint to keep in step, and re-reporting the url and title
+     * while we are here costs nothing and keeps them fresh.
+     *
+     * @return array{balance?:int,name?:string,connected?:bool}|null
+     */
+    public function status(): ?array
+    {
+        $key = $this->key();
+
+        return $key === '' ? null : $this->connect($key);
+    }
+
+    /**
      * Send one account email.
      *
      * @param string $type One of self::TYPES.
@@ -179,6 +195,11 @@ class SwoopClient
     private function forumTitle(): string
     {
         return mb_substr(trim((string) $this->settings->get('forum_title')), 0, 120);
+    }
+
+    public function serviceBase(): string
+    {
+        return $this->serviceUrl();
     }
 
     private function serviceUrl(): string

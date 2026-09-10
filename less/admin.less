@@ -1,0 +1,21 @@
+// The meter. A bar rather than a number alone, because "1,240" means nothing
+// without knowing what full looks like.
+.Swoop-meterBar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--control-bg, #eee);
+  overflow: hidden;
+  margin: 6px 0 8px;
+}
+
+.Swoop-meterFill {
+  height: 100%;
+  background: var(--primary-color, #07adcc);
+  transition: width 0.3s;
+
+  // Amber, not red: running low is a reminder, not a failure. Nothing has
+  // broken yet and the forum keeps sending until it actually hits zero.
+  &.is-low { background: #d98b1e; }
+}
+
+.Swoop-meter .Button { margin-top: 4px; }

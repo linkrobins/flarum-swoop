@@ -23,7 +23,8 @@ use LinkRobins\Swoop\SwoopServiceProvider;
 
 return [
     (new Extend\Frontend('admin'))
-        ->js(__DIR__ . '/js/dist/admin.js'),
+        ->js(__DIR__ . '/js/dist/admin.js')
+        ->css(__DIR__ . '/less/admin.less'),
 
     new Extend\Locales(__DIR__ . '/locale'),
 
@@ -41,6 +42,7 @@ return [
         // Admin-only, no recipient parameter: it can only mail the admin who
         // calls it.
         ->post('/swoop/test', 'swoop.test', LinkRobins\Swoop\Http\SendTestController::class)
+        ->get('/swoop/status', 'swoop.status', LinkRobins\Swoop\Http\StatusController::class)
         ->remove('forgot')
         ->post('/forgot', 'forgot', LinkRobins\Swoop\Http\ForgotPasswordController::class),
 
