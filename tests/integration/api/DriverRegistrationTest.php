@@ -59,7 +59,7 @@ class DriverRegistrationTest extends TestCase
         $this->app();
 
         // With no key pasted, the client must report itself unconnected so
-        // every mailer falls through to the forum's own settings.
+        // the driver reports itself unconfigured rather than sending.
         $this->assertFalse($this->app()->getContainer()->make(SwoopClient::class)->connected());
     }
 }
