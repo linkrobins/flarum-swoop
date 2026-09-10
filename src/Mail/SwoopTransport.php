@@ -8,6 +8,7 @@ use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractTransport;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\Message;
+use Symfony\Component\Mime\RawMessage;
 use Symfony\Component\Mime\MessageConverter;
 
 /**
@@ -33,6 +34,14 @@ class SwoopTransport extends AbstractTransport
     {
         $email = $this->asEmail($sent->getOriginalMessage());
 
+        if ($email === null) {
+            // Somebody handed the mailer a pre-built MIME string rather than a
+            // message object. Flarum never does, but the type allows it, and
+            // there is nothing honest to do with an opaque blob: the service
+            // takes a subject and a body, not an envelope we cannot read.
+            throw new TransportException('Swoop cannot relay a raw MIME message.');
+        }
+
         $to = array_map(fn ($a) => $a->getAddress(), $email->getTo());
 
         if (! $to) {
@@ -56,9 +65,13 @@ class SwoopTransport extends AbstractTransport
         }
     }
 
-    private function asEmail(Message $message): Email
+    private function asEmail(RawMessage $message): ?Email
     {
-        return $message instanceof Email ? $message : MessageConverter::toEmail($message);
+        if ($message instanceof Email) {
+            return $message;
+        }
+
+        return $message instanceof Message ? MessageConverter::toEmail($message) : null;
     }
 
     public function __toString(): string
