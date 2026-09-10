@@ -4,6 +4,7 @@ namespace LinkRobins\Swoop\Mailer;
 
 use Flarum\User\EmailConfirmationMailer;
 use Flarum\User\Event\EmailChangeRequested;
+use LinkRobins\Swoop\NativeMessage;
 use LinkRobins\Swoop\SwoopClient;
 
 /**
@@ -17,9 +18,16 @@ class EmailChangeMailer extends EmailConfirmationMailer
 {
     protected ?SwoopClient $swoop = null;
 
+    protected ?NativeMessage $native = null;
+
     public function setSwoop(SwoopClient $swoop): void
     {
         $this->swoop = $swoop;
+    }
+
+    public function setNative(NativeMessage $native): void
+    {
+        $this->native = $native;
     }
 
     public function handle(EmailChangeRequested $event): void
@@ -34,7 +42,16 @@ class EmailChangeMailer extends EmailConfirmationMailer
         $token = $this->generateToken($event->user, $email);
         $data  = $this->getEmailData($event->user, $email);
 
-        if (!$this->swoop->send('email_change', $email, (string) ($data['url'] ?? ''))) {
+        $message = $this->native?->render(
+            'core.email.confirm_email.subject',
+            'core.email.confirm_email.body',
+            $data,
+            $email,
+            (string) ($data['username'] ?? ''),
+            $event->user->getPreference('locale')
+        ) ?? [];
+
+        if (!$this->swoop->send('email_change', $email, (string) ($data['url'] ?? ''), $message)) {
             // Hand the event back rather than leave the person with no email
             // at all. Core mints a fresh token; the one above is simply never
             // used and expires on its own.

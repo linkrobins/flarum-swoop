@@ -7,6 +7,8 @@ use Flarum\Queue\AbstractJob;
 use Flarum\User\PasswordToken;
 use Flarum\User\User;
 use Illuminate\Contracts\Queue\Queue;
+use Flarum\Settings\SettingsRepositoryInterface;
+use LinkRobins\Swoop\NativeMessage;
 use LinkRobins\Swoop\SwoopClient;
 
 /**
@@ -25,7 +27,7 @@ class RequestPasswordResetJob extends AbstractJob
     {
     }
 
-    public function handle(SwoopClient $swoop, UrlGenerator $url, Queue $queue): void
+    public function handle(SwoopClient $swoop, UrlGenerator $url, Queue $queue, NativeMessage $native, SettingsRepositoryInterface $settings): void
     {
         if (!$swoop->connected()) {
             $queue->push(new \Flarum\User\Job\RequestPasswordResetJob($this->email));
@@ -45,7 +47,22 @@ class RequestPasswordResetJob extends AbstractJob
 
         $link = $url->to('forum')->route('resetPassword', ['token' => $token->token]);
 
-        if (!$swoop->send('password_reset', (string) $user->email, $link)) {
+        // Same data core's own job builds, so the rendered email is the one
+        // the forum would have sent.
+        $message = $native->render(
+            'core.email.reset_password.subject',
+            'core.email.reset_password.body',
+            [
+                'username' => $user->display_name,
+                'url'      => $link,
+                'forum'    => $settings->get('forum_title'),
+            ],
+            (string) $user->email,
+            (string) $user->display_name,
+            $user->getPreference('locale')
+        );
+
+        if (!$swoop->send('password_reset', (string) $user->email, $link, $message)) {
             $queue->push(new \Flarum\User\Job\RequestPasswordResetJob($this->email));
         }
     }

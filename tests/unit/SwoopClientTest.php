@@ -64,6 +64,7 @@ class SwoopClientTest extends TestCase
             'linkrobins-swoop.key'         => 'KEY-123',
             'linkrobins-swoop.connected'   => '1',
             'linkrobins-swoop.service-url' => 'https://service.test',
+            'forum_title'                  => 'Karl\'s Forum',
         ];
     }
 
@@ -82,6 +83,21 @@ class SwoopClientTest extends TestCase
         // The forum reporting its own address is what makes the service's link
         // check mean anything.
         $this->assertStringContainsString('forum_url=https%3A%2F%2Fforum.example.test', $body);
+    }
+
+    #[Test]
+    public function the_forum_reports_its_own_name(): void
+    {
+        $client = $this->client(
+            [new Response(200, [], json_encode(['sent' => true]))],
+            $this->connectedSettings()
+        );
+
+        $client->send('activation', 'a@b.test', 'https://forum.example.test/x');
+
+        // The name a member reads comes from the forum's own settings, not from
+        // a label typed on the service side.
+        $this->assertStringContainsString('forum_title=Karl%27s+Forum', (string) $this->history[0]['request']->getBody());
     }
 
     #[Test]
@@ -121,8 +137,50 @@ class SwoopClientTest extends TestCase
         $this->assertStringContainsString('type=activation', $body);
         $this->assertStringContainsString('token=KEY-123', $body);
 
-        // The point of the whole design: there is no field here that could
-        // carry an attacker's message.
+        // No sender, ever: the address a member sees is not the forum's to
+        // choose. A subject and body may travel now -- the forum renders its
+        // own email -- but only when it actually rendered one.
+        foreach (['from', 'sender'] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden . '=', $body);
+        }
+
+        // Nothing rendered was passed, so nothing message-shaped is on the wire.
+        foreach (['subject', 'html', 'text'] as $absent) {
+            $this->assertStringNotContainsString($absent . '=', $body);
+        }
+    }
+
+    #[Test]
+    public function the_forums_own_rendered_message_is_what_travels(): void
+    {
+        $client = $this->client([new Response(200, [], json_encode(['sent' => true]))], $this->connectedSettings());
+
+        $this->assertTrue($client->send('activation', 'a@b.test', 'https://forum.example.test/x', [
+            'subject' => 'Activate Your New Account',
+            'text'    => 'Hey there',
+            'html'    => '<p>Hey there</p>',
+        ]));
+
+        $body = (string) $this->history[0]['request']->getBody();
+        $this->assertStringContainsString('subject=Activate+Your+New+Account', $body);
+        $this->assertStringContainsString('text=Hey+there', $body);
+
+        // Still never ours to choose.
+        $this->assertStringNotContainsString('from=', $body);
+    }
+
+    #[Test]
+    public function the_test_type_is_allowed_and_still_carries_no_message_fields(): void
+    {
+        $client = $this->client([new Response(200, [], json_encode(['sent' => true]))], $this->connectedSettings());
+
+        // The admin's own "is this working?" send. It is a real email, so it
+        // goes through exactly the same narrow door as the account mail.
+        $this->assertTrue($client->send('test', 'admin@b.test', 'https://forum.example.test'));
+
+        $body = (string) $this->history[0]['request']->getBody();
+        $this->assertStringContainsString('type=test', $body);
+
         foreach (['subject', 'body', 'html', 'text', 'from', 'sender'] as $forbidden) {
             $this->assertStringNotContainsString($forbidden . '=', $body);
         }

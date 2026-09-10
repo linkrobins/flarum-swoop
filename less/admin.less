@@ -1,0 +1,65 @@
+// The meter. A bar rather than a number alone, because "1,240" means nothing
+// without knowing what full looks like.
+.Swoop-meterBar {
+  height: 8px;
+  border-radius: 4px;
+  // Not --control-bg: in the admin theme that resolves to near-white, so the
+  // track vanished into the page and the bar read as empty space. A tint of
+  // the text colour has contrast on any ground, light or dark.
+  background: fade(#000, 10%);
+  overflow: hidden;
+  margin: 8px 0;
+  // Both, and this is the whole bug: the track had a max-width and no width,
+  // and its parent gives a bare div none of its own, so it laid out 0px wide
+  // and read as an empty gap. A colour cannot show on something with no width.
+  width: 100%;
+  max-width: 400px;
+}
+
+.Swoop-meterFill {
+  height: 100%;
+  background: var(--primary-color, #07adcc);
+  transition: width 0.3s;
+
+  // Amber, not red: running low is a reminder, not a failure. Nothing has
+  // broken yet and the forum keeps sending until it actually hits zero.
+  &.is-low { background: #d98b1e; }
+}
+
+.Swoop-meter .Button { margin-top: 4px; }
+
+// Delivery numbers. Three figures side by side rather than a chart: there are
+// only three, and what an admin wants is whether the second two are zero.
+.Swoop-statRow { display: flex; gap: 24px; margin: 6px 0 4px; }
+
+.Swoop-stat {
+  display: flex;
+  flex-direction: column;
+  b { font-size: 20px; line-height: 1.2; }
+  span { font-size: 12px; color: var(--muted-color, #8a9099); }
+
+  // Only coloured when there is something to look at. A red zero trains people
+  // to ignore red.
+  &.is-bad b { color: #c8442e; }
+}
+
+.Swoop-replyList { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+
+.Swoop-reply {
+  max-width: 640px;
+  border: 1px solid fade(#000, 12%);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.Swoop-replyHead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.Swoop-replyFrom { font-size: 12px; color: var(--muted-color, #8a9099); }
+.Swoop-replySubject { font-size: 13px; color: var(--muted-color, #8a9099); margin-top: 2px; }
+
+// Replies arrive as plain text with real line breaks; preserve them, and keep
+// a long unbroken url from pushing the panel sideways.
+.Swoop-replyBody {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+}

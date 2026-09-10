@@ -25,7 +25,9 @@ use Throwable;
  */
 class SwoopClient
 {
-    public const TYPES = ['activation', 'password_reset', 'email_change'];
+    // 'test' is the admin proving the path to themselves from the settings
+    // page. It is a real send and counts against quota like the rest.
+    public const TYPES = ['activation', 'password_reset', 'email_change', 'test'];
 
     /**
      * Where the service answers unless a forum overrides it.
@@ -57,11 +59,28 @@ class SwoopClient
         }
 
         $body = $this->post('/mail/config', [
-            'token'     => $key,
-            'forum_url' => rtrim((string) $this->config->url(), '/'),
+            'token'       => $key,
+            'forum_url'   => rtrim((string) $this->config->url(), '/'),
+            'forum_title' => $this->forumTitle(),
         ]);
 
         return ($body && !empty($body['connected'])) ? $body : null;
+    }
+
+    /**
+     * Ask the service where this key stands.
+     *
+     * Same call as connect(), which already answers with the balance -- there is
+     * no second endpoint to keep in step, and re-reporting the url and title
+     * while we are here costs nothing and keeps them fresh.
+     *
+     * @return array{balance?:int,name?:string,connected?:bool}|null
+     */
+    public function status(): ?array
+    {
+        $key = $this->key();
+
+        return $key === '' ? null : $this->connect($key);
     }
 
     /**
@@ -69,22 +88,54 @@ class SwoopClient
      *
      * @param string $type One of self::TYPES.
      * @param string $link Must be a url on this forum; the service rejects others.
+     * @param array{subject?:string,html?:string,text?:string} $message The email
+     *        as the forum rendered it. Every link in it must be on this forum.
      * @return bool True when the service accepted it.
      */
-    public function send(string $type, string $to, string $link): bool
+    public function send(string $type, string $to, string $link, array $message = []): bool
     {
         if (!$this->connected() || !in_array($type, self::TYPES, true)) {
             return false;
         }
 
-        $body = $this->post('/mail/send', [
-            'token' => $this->key(),
-            'type'  => $type,
-            'to'    => $to,
-            'link'  => $link,
-        ]);
+        $body = $this->post('/mail/send', array_filter([
+            'token'       => $this->key(),
+            'type'        => $type,
+            'to'          => $to,
+            'link'        => $link,
+            // The finished email, rendered by the forum. The service delivers
+            // it as-is; it does not write one of its own. Absent only if the
+            // caller had nothing rendered, in which case the service falls
+            // back to its own copy.
+            'subject'     => $message['subject'] ?? null,
+            'html'        => $message['html'] ?? null,
+            'text'        => $message['text'] ?? null,
+            // Sent every time, not just at connect: a forum that renames itself
+            // should be right in the next email rather than whenever somebody
+            // happens to re-save their key.
+            'forum_title' => $this->forumTitle(),
+        ], fn ($v) => $v !== null && $v !== ''));
 
         return (bool) ($body['sent'] ?? false);
+    }
+
+    /**
+     * What people have written back to this forum's account emails.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function replies(bool $markRead = false): array
+    {
+        if (!$this->connected()) {
+            return [];
+        }
+
+        $body = $this->post('/mail/replies', array_filter([
+            'token'    => $this->key(),
+            'markRead' => $markRead ? '1' : null,
+        ]));
+
+        return (array) ($body['replies'] ?? []);
     }
 
     private function post(string $path, array $params): ?array
@@ -153,6 +204,23 @@ class SwoopClient
      * An admin who types a bare host has given a usable answer, so treat it as
      * one rather than letting the http client throw on a url with no scheme.
      */
+    /**
+     * This forum's own name, for the service to put in the email.
+     *
+     * The name a member reads has to come from the forum, not from a label
+     * somebody typed on our side when the key was made. This is the same
+     * setting the forum shows in its own header.
+     */
+    private function forumTitle(): string
+    {
+        return mb_substr(trim((string) $this->settings->get('forum_title')), 0, 120);
+    }
+
+    public function serviceBase(): string
+    {
+        return $this->serviceUrl();
+    }
+
     private function serviceUrl(): string
     {
         $url = trim((string) $this->settings->get('linkrobins-swoop.service-url'));

@@ -5,6 +5,7 @@ namespace LinkRobins\Swoop\Mailer;
 use Flarum\User\AccountActivationMailer;
 use Flarum\User\User;
 use Illuminate\Support\Arr;
+use LinkRobins\Swoop\NativeMessage;
 use LinkRobins\Swoop\SwoopClient;
 
 /**
@@ -21,17 +22,34 @@ use LinkRobins\Swoop\SwoopClient;
 class ActivationMailer extends AccountActivationMailer
 {
     protected ?SwoopClient $swoop = null;
+    protected ?NativeMessage $native = null;
 
     public function setSwoop(SwoopClient $swoop): void
     {
         $this->swoop = $swoop;
     }
 
+    public function setNative(NativeMessage $native): void
+    {
+        $this->native = $native;
+    }
+
     protected function sendConfirmationEmail(User $user, array $data): void
     {
         $link = (string) Arr::get($data, 'url');
 
-        if ($this->swoop?->send('activation', (string) $user->email, $link)) {
+        // Rendered by the forum, in the recipient's own language, from the
+        // forum's own templates. We deliver it; we do not write it.
+        $message = $this->native?->render(
+            'core.email.activate_account.subject',
+            'core.email.activate_account.body',
+            $data,
+            (string) $user->email,
+            (string) Arr::get($data, 'username'),
+            $user->getPreference('locale')
+        ) ?? [];
+
+        if ($this->swoop?->send('activation', (string) $user->email, $link, $message)) {
             return;
         }
 

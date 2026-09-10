@@ -23,7 +23,8 @@ use LinkRobins\Swoop\SwoopServiceProvider;
 
 return [
     (new Extend\Frontend('admin'))
-        ->js(__DIR__ . '/js/dist/admin.js'),
+        ->js(__DIR__ . '/js/dist/admin.js')
+        ->css(__DIR__ . '/less/admin.less'),
 
     new Extend\Locales(__DIR__ . '/locale'),
 
@@ -38,6 +39,11 @@ return [
     // Core pushes its reset job with `new`, so the controller that pushes it is
     // the only seam.
     (new Extend\Routes('api'))
+        // Admin-only, no recipient parameter: it can only mail the admin who
+        // calls it.
+        ->post('/swoop/test', 'swoop.test', LinkRobins\Swoop\Http\SendTestController::class)
+        ->get('/swoop/status', 'swoop.status', LinkRobins\Swoop\Http\StatusController::class)
+        ->get('/swoop/replies', 'swoop.replies', LinkRobins\Swoop\Http\RepliesController::class)
         ->remove('forgot')
         ->post('/forgot', 'forgot', LinkRobins\Swoop\Http\ForgotPasswordController::class),
 
