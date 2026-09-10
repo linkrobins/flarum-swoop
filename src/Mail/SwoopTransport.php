@@ -36,6 +36,11 @@ class SwoopTransport extends AbstractTransport
 
     public function __construct(private SwoopClient $client)
     {
+        // Not optional. AbstractTransport declares typed $dispatcher and
+        // $logger and initialises them here; skipping it fails at send with
+        // "must not be accessed before initialization" — from inside a queue
+        // job, so the forum just sees mail not arriving.
+        parent::__construct();
     }
 
     protected function doSend(SentMessage $sent): void
