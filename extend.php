@@ -43,6 +43,7 @@ return [
         // calls it.
         ->post('/swoop/test', 'swoop.test', LinkRobins\Swoop\Http\SendTestController::class)
         ->get('/swoop/status', 'swoop.status', LinkRobins\Swoop\Http\StatusController::class)
+        ->get('/swoop/replies', 'swoop.replies', LinkRobins\Swoop\Http\RepliesController::class)
         ->remove('forgot')
         ->post('/forgot', 'forgot', LinkRobins\Swoop\Http\ForgotPasswordController::class),
 

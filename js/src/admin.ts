@@ -32,11 +32,44 @@ const test: { busy: boolean; ok: boolean | null; message: string } = { busy: fal
  * the forum happened to send — which is precisely wrong on the one screen an
  * admin opens to find out where they stand.
  */
-const meter: { loaded: boolean; balance: number | null; topUpUrl: string } = { loaded: false, balance: null, topUpUrl: '' };
+type Stats = { sent?: number; delivered?: number; bounced?: number; complained?: number };
+type Reply = { id: number; from: string; name: string; subject: string; body: string; at: string };
+
+const meter: {
+  loaded: boolean;
+  balance: number | null;
+  topUpUrl: string;
+  stats: Stats;
+  unread: number;
+} = { loaded: false, balance: null, topUpUrl: '', stats: {}, unread: 0 };
+
+const replies: { open: boolean; loading: boolean; items: Reply[] } = { open: false, loading: false, items: [] };
+
+function loadReplies() {
+  replies.loading = true;
+  m.redraw();
+
+  app
+    .request<{ replies: Reply[] }>({
+      method: 'GET',
+      url: app.forum.attribute('apiUrl') + '/swoop/replies',
+      errorHandler: () => {},
+    })
+    .then((r) => {
+      replies.items = r.replies || [];
+      // Fetching marks them read on the service, so the badge should go too.
+      meter.unread = 0;
+    })
+    .catch(() => {})
+    .then(() => {
+      replies.loading = false;
+      m.redraw();
+    });
+}
 
 function loadMeter() {
   app
-    .request<{ connected: boolean; balance: number | null; topUpUrl?: string }>({
+    .request<{ connected: boolean; balance: number | null; topUpUrl?: string; stats?: Stats; unread?: number }>({
       method: 'GET',
       url: app.forum.attribute('apiUrl') + '/swoop/status',
       errorHandler: () => {},
@@ -45,6 +78,8 @@ function loadMeter() {
       meter.loaded = true;
       meter.balance = r.balance;
       meter.topUpUrl = r.topUpUrl || '';
+      meter.stats = r.stats || {};
+      meter.unread = r.unread || 0;
       m.redraw();
     })
     .catch(() => {
@@ -134,7 +169,70 @@ app.initializers.add('linkrobins-swoop', () => {
             )
           : null,
       ]);
-    }, 85, 'balance')
+    }, 90, 'balance')
+    .registerSetting(() => {
+      const st = meter.stats;
+      const has = (st.delivered ?? 0) + (st.bounced ?? 0) + (st.complained ?? 0) > 0;
+
+      return m('.Form-group.Swoop-stats', [
+        m('label', app.translator.trans('linkrobins-swoop.admin.delivery_label')),
+        !has
+          ? m('p.helpText', app.translator.trans('linkrobins-swoop.admin.delivery_none'))
+          : m('.Swoop-statRow', [
+              m('.Swoop-stat', [m('b', String(st.delivered ?? 0)), m('span', app.translator.trans('linkrobins-swoop.admin.stat_delivered'))]),
+              m('.Swoop-stat', { className: (st.bounced ?? 0) > 0 ? 'is-bad' : '' }, [
+                m('b', String(st.bounced ?? 0)),
+                m('span', app.translator.trans('linkrobins-swoop.admin.stat_bounced')),
+              ]),
+              m('.Swoop-stat', { className: (st.complained ?? 0) > 0 ? 'is-bad' : '' }, [
+                m('b', String(st.complained ?? 0)),
+                m('span', app.translator.trans('linkrobins-swoop.admin.stat_complained')),
+              ]),
+            ]),
+      ]);
+    }, 85, 'delivery')
+    .registerSetting(() => {
+      if (!replies.open) {
+        return m('.Form-group.Swoop-replies', [
+          m('label', app.translator.trans('linkrobins-swoop.admin.replies_label')),
+          m(
+            Button,
+            {
+              className: 'Button',
+              onclick: () => {
+                replies.open = true;
+                loadReplies();
+              },
+            },
+            meter.unread > 0
+              ? app.translator.trans('linkrobins-swoop.admin.replies_unread', { count: meter.unread })
+              : app.translator.trans('linkrobins-swoop.admin.replies_show')
+          ),
+          m('p.helpText', app.translator.trans('linkrobins-swoop.admin.replies_help')),
+        ]);
+      }
+
+      return m('.Form-group.Swoop-replies', [
+        m('label', app.translator.trans('linkrobins-swoop.admin.replies_label')),
+        replies.loading
+          ? m('p.helpText', app.translator.trans('linkrobins-swoop.admin.replies_loading'))
+          : replies.items.length === 0
+            ? m('p.helpText', app.translator.trans('linkrobins-swoop.admin.replies_empty'))
+            : m(
+                '.Swoop-replyList',
+                replies.items.map((r) =>
+                  m('.Swoop-reply', { key: r.id }, [
+                    m('.Swoop-replyHead', [
+                      m('strong', r.name || r.from),
+                      m('span.Swoop-replyFrom', r.from),
+                    ]),
+                    r.subject ? m('.Swoop-replySubject', r.subject) : null,
+                    m('.Swoop-replyBody', r.body),
+                  ])
+                )
+              ),
+      ]);
+    }, 80, 'replies')
     .registerSetting(() =>
       m('.Form-group', [
         m(
@@ -146,7 +244,7 @@ app.initializers.add('linkrobins-swoop', () => {
           ? m(Alert, { type: test.ok ? 'success' : 'error', dismissible: false }, test.message)
           : null,
         m('p.helpText', app.translator.trans('linkrobins-swoop.admin.test_help')),
-      ]), 70, 'test')
+      ]), 75, 'test')
     .registerSetting({
       setting: 'linkrobins-swoop.key',
       label: app.translator.trans('linkrobins-swoop.admin.key_label'),
@@ -157,12 +255,12 @@ app.initializers.add('linkrobins-swoop', () => {
       // like every other setting, so it is a shoulder-surfing fix rather than
       // a secrecy one.
       type: 'password',
-    }, 90)
+    }, 95)
     .registerSetting({
       setting: 'linkrobins-swoop.service-url',
       label: app.translator.trans('linkrobins-swoop.admin.service_url_label'),
       help: app.translator.trans('linkrobins-swoop.admin.service_url_help'),
       placeholder: 'https://linkrobins.com',
       type: 'string',
-    }, 80);
+    }, 70);
 });

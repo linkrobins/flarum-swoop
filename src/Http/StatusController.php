@@ -37,6 +37,8 @@ class StatusController implements RequestHandlerInterface
             'connected' => true,
             'balance'   => (int) ($status['balance'] ?? 0),
             'name'      => (string) ($status['name'] ?? ''),
+            'stats'     => (array) ($status['stats'] ?? []),
+            'unread'    => (int) ($status['replies'] ?? 0),
             'topUpUrl'  => $this->client->serviceBase() . '/dashboard/swoop',
         ]);
     }

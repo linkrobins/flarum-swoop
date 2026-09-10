@@ -10,13 +10,26 @@ linkrobins-swoop:
     balance_low: "{count} left. Top up before you run out — when the balance is empty your forum falls back to its own mail settings."
     balance_unknown: Connect a key to see how many emails you have left.
     top_up: Top up
+    delivery_label: Delivery
+    delivery_none: Nothing reported yet. Numbers appear once your forum has sent some mail.
+    stat_delivered: delivered
+    stat_bounced: bounced
+    stat_complained: marked spam
+    replies_label: Replies
+    replies_show: Show replies
+    replies_unread: "Show replies ({count} new)"
+    replies_loading: Fetching…
+    replies_empty: Nobody has replied yet.
+    replies_help: >
+      Account emails normally come from an address nobody reads. Anyone who
+      answers one of yours ends up here instead.
     test_button: Send me a test email
     test_sending: Sending…
     test_sent: "Sent to {email}. If it does not arrive within a minute or two, check spam before changing anything."
     test_failed: "Could not send: {error}"
     test_help: >
       Sends one real email to your own address, so you find out the whole path
-      works before a new member does. It counts against your monthly allowance.
+      works before a new member does. It costs one email from your balance.
     service_url_label: Service address
     service_url_help: >
       Where the key is checked and messages are handed over. Leave this alone

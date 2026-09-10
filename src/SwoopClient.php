@@ -119,6 +119,25 @@ class SwoopClient
         return (bool) ($body['sent'] ?? false);
     }
 
+    /**
+     * What people have written back to this forum's account emails.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function replies(bool $markRead = false): array
+    {
+        if (!$this->connected()) {
+            return [];
+        }
+
+        $body = $this->post('/mail/replies', array_filter([
+            'token'    => $this->key(),
+            'markRead' => $markRead ? '1' : null,
+        ]));
+
+        return (array) ($body['replies'] ?? []);
+    }
+
     private function post(string $path, array $params): ?array
     {
         $base = $this->serviceUrl();
