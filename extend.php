@@ -19,7 +19,6 @@ use Flarum\Extend;
 use Flarum\Settings\Event\Saved;
 use LinkRobins\Swoop\Listener\ExchangeKeyOnSave;
 use LinkRobins\Swoop\SwoopClient;
-use LinkRobins\Swoop\SwoopServiceProvider;
 
 return [
     (new Extend\Frontend('admin'))
@@ -28,24 +27,21 @@ return [
 
     new Extend\Locales(__DIR__ . '/locale'),
 
-    // Core resolves both mailers from the container by class name when it wires
-    // them as event listeners, so binding subclasses is enough to take over.
-    (new Extend\ServiceProvider())
-        ->register(SwoopServiceProvider::class),
+    // Swoop is a choice in Admin → Email now, beside SMTP and Mailgun. Being
+    // the driver is what lets it carry everything the forum sends, instead of
+    // three intercepted mailers and nothing else.
+    (new Extend\Mail())
+        ->driver('swoop', LinkRobins\Swoop\Mail\SwoopDriver::class),
 
     (new Extend\Event())
         ->listen(Saved::class, ExchangeKeyOnSave::class),
 
-    // Core pushes its reset job with `new`, so the controller that pushes it is
-    // the only seam.
     (new Extend\Routes('api'))
         // Admin-only, no recipient parameter: it can only mail the admin who
         // calls it.
         ->post('/swoop/test', 'swoop.test', LinkRobins\Swoop\Http\SendTestController::class)
         ->get('/swoop/status', 'swoop.status', LinkRobins\Swoop\Http\StatusController::class)
-        ->get('/swoop/replies', 'swoop.replies', LinkRobins\Swoop\Http\RepliesController::class)
-        ->remove('forgot')
-        ->post('/forgot', 'forgot', LinkRobins\Swoop\Http\ForgotPasswordController::class),
+        ->get('/swoop/replies', 'swoop.replies', LinkRobins\Swoop\Http\RepliesController::class),
 
     // The address is a setting, and an admin can see and change it, because a
     // forum that is pointed at the wrong host has no other way back: the only

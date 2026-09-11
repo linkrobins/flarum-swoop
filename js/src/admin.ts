@@ -131,6 +131,13 @@ app.initializers.add('linkrobins-swoop', () => {
           { type: connected ? 'success' : 'warning', dismissible: false },
           app.translator.trans(`linkrobins-swoop.admin.${connected ? 'connected' : 'not_connected'}`)
         ),
+        // Upgrading from the version that intercepted mailers leaves the key
+        // connected and mail_driver untouched, so Swoop quietly stops carrying
+        // anything while this page still says "connected". Nothing errors; it
+        // just stops working. Say so.
+        connected && setting('mail_driver') !== 'swoop'
+          ? m(Alert, { type: 'warning', dismissible: false }, app.translator.trans('linkrobins-swoop.admin.not_selected'))
+          : null,
         !connected && error
           ? m('p.helpText', app.translator.trans('linkrobins-swoop.admin.last_error', { error }))
           : null,

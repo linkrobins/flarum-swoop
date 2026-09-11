@@ -24,9 +24,24 @@ Then paste your key under **Admin → Swoop**. Saving checks it immediately, so 
 
 The panel there says whether the key was accepted, and prints what the service replied when it was not. There is also a **Service address**, which is `https://linkrobins.com` and which you should leave alone unless you have been given a different one.
 
-## If the service is unreachable
+## Choosing it
 
-Every path falls back to your forum's own mail settings. Installing this can only help; it cannot leave you worse off than you were.
+Swoop is a mail driver, so you pick it in **Admin → Email** the way you would
+pick SMTP. From then on it carries everything the forum sends — account mail,
+notifications, whatever an extension sends — all of it written by Flarum and
+delivered by us.
+
+Being the driver means it is the forum's mail. If the service is unreachable,
+mail fails, exactly as it would with an SMTP host that stopped answering.
+Earlier versions intercepted three emails and fell back to your own settings;
+that was safer and much less useful.
+
+Two more things worth knowing before you pick it. **The From address is ours,
+not yours** — mail goes out as your forum's own name on our sending domain, so
+the address in Admin → Email is not used while Swoop is the driver. And
+**attachments are not carried yet**: a message with one is refused rather than
+sent without it, because an email saying "see attached" with nothing attached
+is worse than a failure you can see.
 
 ## Your forum writes the email, we deliver it
 

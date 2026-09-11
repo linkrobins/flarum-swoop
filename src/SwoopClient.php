@@ -138,8 +138,59 @@ class SwoopClient
         return (array) ($body['replies'] ?? []);
     }
 
-    private function post(string $path, array $params): ?array
+    /**
+     * Hand over a message the forum has already finished.
+     *
+     * Null when the service took it, or the reason it did not — the transport
+     * turns that into an exception, so a failure is visible rather than a
+     * silently missing email.
+     *
+     * @param array{
+     *     to: string, cc?: string, bcc?: string, from?: string,
+     *     subject: string, html: string, text: string, reply_to?: string,
+     *     headers?: array<string,string>
+     * } $message The email exactly as the forum built it.
+     */
+    public function deliver(array $message): ?string
     {
+        if (! $this->connected()) {
+            return 'no Swoop key is connected';
+        }
+
+        $body = $this->post('/mail/deliver', array_filter([
+            'token'       => $this->key(),
+            'forum_title' => $this->forumTitle(),
+            'to'          => $message['to'],
+            'subject'     => $message['subject'],
+            'html'        => $message['html'],
+            'text'        => $message['text'],
+            'reply_to'    => $message['reply_to'] ?? '',
+            'cc'          => $message['cc'] ?? '',
+            'bcc'         => $message['bcc'] ?? '',
+            'from'        => $message['from'] ?? '',
+            'headers'     => $message['headers'] ? json_encode($message['headers']) : '',
+        ], fn ($v) => $v !== null && $v !== ''), remember: false);
+
+        if ($body && ! empty($body['sent'])) {
+            return null;
+        }
+
+        return $this->lastFailure ?: 'the service refused the message';
+    }
+
+    /** The reason the last call failed, for callers that do not want it stored. */
+    private ?string $lastFailure = null;
+
+    /**
+     * @param bool $remember Write the reason to settings so the admin page can
+     *   show it. True for the key exchange, which happens when somebody presses
+     *   save; false on the send path, where it would mean a settings write and
+     *   a cache bust for every email, and a write storm during an outage.
+     */
+    private function post(string $path, array $params, bool $remember = true): ?array
+    {
+        $this->lastFailure = null;
+
         $base = $this->serviceUrl();
         $url  = $base . $path;
 
@@ -176,14 +227,20 @@ class SwoopClient
                     'reason' => $reason,
                 ]);
 
-                $this->rememberError($reason !== null
+                $this->lastFailure = $reason !== null
                     ? (string) $reason
-                    : 'The service did not answer at ' . $url . ' (HTTP ' . $res->getStatusCode() . ').');
+                    : 'The service did not answer at '.$url.' (HTTP '.$res->getStatusCode().').';
+
+                if ($remember) {
+                    $this->rememberError($this->lastFailure);
+                }
 
                 return null;
             }
 
-            $this->settings->set('linkrobins-swoop.last-error', '');
+            if ($remember) {
+                $this->settings->set('linkrobins-swoop.last-error', '');
+            }
 
             return is_array($body) ? $body : null;
         } catch (Throwable $e) {
@@ -192,7 +249,11 @@ class SwoopClient
             // Nothing answered at all: an unreachable host, DNS that does not
             // resolve, a timeout. Previously this was logged and nowhere else,
             // so the settings page said "not connected" with no reason on it.
-            $this->rememberError('Could not reach the service at ' . $url . ': ' . $e->getMessage());
+            $this->lastFailure = 'Could not reach the service at '.$url.': '.$e->getMessage();
+
+            if ($remember) {
+                $this->rememberError($this->lastFailure);
+            }
 
             return null;
         }

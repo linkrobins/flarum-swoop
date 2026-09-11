@@ -5,6 +5,10 @@ linkrobins-swoop:
       Paste the key from your Link Robins dashboard. Your forum's account
       emails then go out through us over HTTPS, so a host that blocks SMTP
       ports stops mattering. Saving checks the key straight away.
+    not_selected: >
+      Your key works, but this forum is not using Swoop to send. Choose Swoop
+      under Email in the admin settings — until you do, mail goes out however
+      it did before.
     balance_label: Emails left
     balance_left: "{count} left. They do not expire."
     balance_low: "{count} left. Top up before you run out — when the balance is empty your forum falls back to its own mail settings."
